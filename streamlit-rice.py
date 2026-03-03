@@ -4,13 +4,27 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 from PIL import Image
 import torch.nn.functional as F
+import gdown
+import os
 
 st.set_page_config(page_title="Rice Disease Detection", layout="wide")
 
-st.title("🌾 Real-Time Rice Disease Detection (Colab Deployment)")
+st.title("🌾 Real-Time Rice Disease Detection")
 st.write("Upload a rice leaf image")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# ------------------ DOWNLOAD MODEL FROM GOOGLE DRIVE ------------------
+
+MODEL_PATH = "rice_model.pth"
+FILE_ID = "1ns2pDwMhfhIkym_kmxHQX8sLqQlCdHtX"
+
+if not os.path.exists(MODEL_PATH):
+    with st.spinner("Downloading model... Please wait ⏳"):
+        url = f"https://drive.google.com/uc?id={FILE_ID}"
+        gdown.download(url, MODEL_PATH, quiet=False)
+
+# ------------------ MODEL ARCHITECTURE ------------------
 
 class RiceCNN(nn.Module):
     def __init__(self, num_classes=12):
@@ -43,31 +57,37 @@ class RiceCNN(nn.Module):
         x = self.fc2(x)
         return x
 
+# ------------------ LOAD MODEL ------------------
+
 model = RiceCNN().to(device)
-model.load_state_dict(torch.load("rice_model.pth", map_location=device))
+model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
 model.eval()
 
+# ------------------ CLASS NAMES ------------------
+
 classes = [
-"green_leafhopper",
-"planthopper",
-"rice_bacterialblight_Disease",
-"rice_blast_disease",
-"rice_brownspot_disease",
-"rice_bug",
-"rice_falsesmut_Disease",
-"rice_healthy_leaf",
-"rice_leaf_roller",
-"rice_leafscald",
-"rice_sheathblight",
-"rice_stemborer"
+    "green_leafhopper",
+    "planthopper",
+    "rice_bacterialblight_Disease",
+    "rice_blast_disease",
+    "rice_brownspot_disease",
+    "rice_bug",
+    "rice_falsesmut_Disease",
+    "rice_healthy_leaf",
+    "rice_leaf_roller",
+    "rice_leafscald",
+    "rice_sheathblight",
+    "rice_stemborer"
 ]
+
+# ------------------ IMAGE TRANSFORM ------------------
 
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor()
 ])
 
-uploaded_file = st.file_uploader("Upload Rice Leaf Image", type=["jpg","png","jpeg"])
+uploaded_file = st.file_uploader("Upload Rice Leaf Image", type=["jpg", "png", "jpeg"])
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
@@ -81,7 +101,7 @@ if uploaded_file is not None:
         confidence, pred = torch.max(probs, 1)
 
     disease = classes[pred.item()]
-    confidence = confidence.item()*100
+    confidence = confidence.item() * 100
 
     st.subheader("Prediction Result")
 
@@ -93,4 +113,4 @@ if uploaded_file is not None:
 
     st.write("All Class Probabilities")
     for i, cls in enumerate(classes):
-        st.write(f"{cls}: {probs[0][i].item()*100:.2f}%")
+        st.write(f"{cls}: {probs[0][i].item() * 100:.2f}%")
